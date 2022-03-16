@@ -13,10 +13,12 @@ from lib import DataHandler
 @click.option('--lowerLimit', '-l', 'lowerLimit', type=int, default=-1, required=True)
 @click.option('--upperLimit', '-u', 'upperLimit', type=int, default=-1, required=True)
 def main(kline, lowerLimit, upperLimit):
-    click.echo("kline size: {}, lowerLimit: {}, upperLimit: {}".format(
-        kline, lowerLimit, upperLimit))
+    click.echo(
+        f"kline size: {kline}, lowerLimit: {lowerLimit}, upperLimit: {upperLimit}"
+    )
+
     datahandler = DataHandler.BinanceWrapper()
-    pid_file = 'datarunner_{}_{}_{}.pid'.format(kline, lowerLimit, upperLimit)
+    pid_file = f'datarunner_{kline}_{lowerLimit}_{upperLimit}.pid'
     fp = open(pid_file, 'w')
     try:
         fcntl.lockf(fp, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -25,19 +27,18 @@ def main(kline, lowerLimit, upperLimit):
         click.echo("already running")
         sys.exit(1)
     numCryptos = len(datahandler.getcryptoSymbols(tether="USDT"))
-    if(upperLimit != -1 and lowerLimit != -1):
-        if(lowerLimit >= 0 and lowerLimit < upperLimit):
-            if(upperLimit > numCryptos):
-                upperLimit = numCryptos
-            datahandler.updateLimitedCryptoData(
-                kline_size=kline, upperLimit=upperLimit, lowerLimit=lowerLimit)
-        else:
-            click.echo("Invalid upper and lower limits")
-    else:
+    if upperLimit == -1 or lowerLimit == -1:
         datahandler.getAllCryptoDataBinance(kline_size=kline, save=True)
+    elif (lowerLimit >= 0 and lowerLimit < upperLimit):
+        upperLimit = min(upperLimit, numCryptos)
+        datahandler.updateLimitedCryptoData(
+            kline_size=kline, upperLimit=upperLimit, lowerLimit=lowerLimit)
+    else:
+        click.echo("Invalid upper and lower limits")
     os.remove(pid_file)
-    print("completed kline size: {}, lowerLimit: {}, upperLimit: {}".format(
-        kline, lowerLimit, upperLimit))
+    print(
+        f"completed kline size: {kline}, lowerLimit: {lowerLimit}, upperLimit: {upperLimit}"
+    )
 
 
 if __name__ == "__main__":
