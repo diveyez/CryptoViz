@@ -16,40 +16,34 @@ class CryptoCalculator:
         period = 9
         if len(df) < period:
             period = len(df) // 2
-        data = ema(df, period)
-        return(data)
+        return ema(df, period)
     
     def sma(self, df):
         period = 15
         if len(df) < period:
             period = len(df) // 2
-        data = sma(df,15)
-        return(data)
+        return sma(df,15)
     
     def rsi(self, df):
         period = 14
         if len(df) < period:
             period = len(df) // 2
-        data = rsi(df, period)
-        return(data)
+        return rsi(df, period)
 
     def ubb(self, df):
         period = 20
         if len(df) < period:
             period = len(df) // 2
-        data = ubb(df,period)
-        return(data)
+        return ubb(df,period)
     
     def mbb(self, df):
         period = 20
         if len(df) < period:
             period = len(df) // 2
-        data = mbb(df,period)
-        return(data)
+        return mbb(df,period)
 
     def lbb(self, df):
         period = 20
         if len(df) < period:
             period = len(df) // 2
-        data = lbb(df,period)
-        return(data)
+        return lbb(df,period)

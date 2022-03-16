@@ -70,14 +70,12 @@ class BinanceWrapper:
             print(e)
             return []
 
-        symbols_list = []
-
-        for pair in data['symbols']:
-            if pair['status'] == 'TRADING':
-                if((tether and tether in pair['symbol']) or not tether):
-                    symbols_list.append(pair['symbol'])
-
-        return symbols_list
+        return [
+            pair['symbol']
+            for pair in data['symbols']
+            if pair['status'] == 'TRADING'
+            and (((tether and tether in pair['symbol']) or not tether))
+        ]
 
     def minutes_of_new_data(self, symbol, kline_size, data, source):
         if len(data) > 0:
@@ -92,20 +90,24 @@ class BinanceWrapper:
     # Sourced from https://gist.github.com/nistrup/1e724d6e450fd1da09a0782e6bfcd41a
     def getCryptoDataBinance(self, symbol, kline_size, save=False):
         Path("lib", "cryptoData").mkdir(parents=True, exist_ok=True)
-        filename = Path(Path().absolute(), "lib", "cryptoData", '%s-%s-data.gz' %
-                        (symbol, kline_size))
+        filename = Path(
+            Path().absolute(),
+            "lib",
+            "cryptoData",
+            f'{symbol}-{kline_size}-data.gz',
+        )
 
-        if filename.exists():
-            data_df = pd.read_csv(filename)
-        else:
-            data_df = pd.DataFrame()
+
+        data_df = pd.read_csv(filename) if filename.exists() else pd.DataFrame()
         oldest_point, newest_point = self.minutes_of_new_data(
             symbol, kline_size, data_df, source="binance")
         delta_min = (newest_point - oldest_point).total_seconds()/60
         available_data = math.ceil(delta_min/self._intervals[kline_size])
         if oldest_point == datetime.strptime('1 Feb 2020', '%d %b %Y'):
-            print('Downloading all available %s data for %s. Be patient..!' %
-                  (kline_size, symbol))
+            print(
+                f'Downloading all available {kline_size} data for {symbol}. Be patient..!'
+            )
+
         else:
             print('Downloading %d minutes of new data available for %s, i.e. %d instances of %s data.' % (
                 delta_min, symbol, available_data, kline_size))
@@ -139,8 +141,13 @@ class BinanceWrapper:
                 crypto, kline_size, save=True)
 
     def retrieveCryptoData(self, symbol, kline_size):
-        filename = Path(Path().absolute(), "lib", "cryptoData", '%s-%s-data.gz' %
-                        (symbol, kline_size))
+        filename = Path(
+            Path().absolute(),
+            "lib",
+            "cryptoData",
+            f'{symbol}-{kline_size}-data.gz',
+        )
+
         if not filename.exists():
             return None
         return pd.read_csv(filename)
@@ -194,11 +201,10 @@ class BinanceWrapper:
             "supports_time": True})
 
     def symbolsInfo(self, symbol, symbolName=None):
-        symbolTether = ""
-        for tether in self.tethers:
-            if tether in symbol:
-                symbolTether = tether
-                break
+        symbolTether = next(
+            (tether for tether in self.tethers if tether in symbol), ""
+        )
+
         symbolNoTether = symbol.replace(symbolTether, "")
         currValuePing = (self.binance_client.get_klines(
             symbol=symbol, interval="1m", limit=1))
@@ -212,18 +218,29 @@ class BinanceWrapper:
             pricescale = 10000
         elif(currValuePing < 1):
             pricescale = 1000000
-        return ({"symbol": symbol, "ticker": symbol, "name": symbol, "full_name": symbolName if symbolName else symbol,
-                 "description": symbolNoTether + " / " + symbolTether, "exchange": "BINANCE", "listed_exchange": "BINANCE",
-                 "type": "crypto", "currency_code": symbolName if symbolName else "USDT", "session": "24x7",
-                 "timezone": "UTC",
-                 "minmovement": 1,
-                 "minmov": 1,
-                 "minmovement2": 0,
-                 "minmov2": 0, "pricescale": pricescale, "supported_resolutions": self._supportedResolutions,
-                 "has_intraday": True,
-                 "has_daily": True,
-                 "has_weekly_and_monthly": True,
-                 "data_status": "streaming"})
+        return {
+            "symbol": symbol,
+            "ticker": symbol,
+            "name": symbol,
+            "full_name": symbolName or symbol,
+            "description": symbolNoTether + " / " + symbolTether,
+            "exchange": "BINANCE",
+            "listed_exchange": "BINANCE",
+            "type": "crypto",
+            "currency_code": symbolName or "USDT",
+            "session": "24x7",
+            "timezone": "UTC",
+            "minmovement": 1,
+            "minmov": 1,
+            "minmovement2": 0,
+            "minmov2": 0,
+            "pricescale": pricescale,
+            "supported_resolutions": self._supportedResolutions,
+            "has_intraday": True,
+            "has_daily": True,
+            "has_weekly_and_monthly": True,
+            "data_status": "streaming",
+        }
 
     def history(self, to, fromDate, symbol, resolution):
         RESOLUTIONS_INTERVALS_MAP = {
@@ -282,9 +299,8 @@ class BinanceWrapper:
         fromDate = datetime.utcfromtimestamp(
             int(fromDate)).strftime('%d %b %Y %H:%M:%S')
 
-        klines = self.binance_client.get_historical_klines(
+        return self.binance_client.get_historical_klines(
             symbol, interval, fromDate, to, limit=1000)
-        return klines
 
 
 class _Scraper:
@@ -298,14 +314,13 @@ class _Scraper:
         count = 1
         url = 'https://bitscreener.com/screener/?o=per_' + \
             str(time)+'h&desc='+str(isDesc)+'&f=e_Binance'
-        while(count < 11):
+        while (count < 11):
             res = requests.get(url+'&p='+str(count))
             soup = BeautifulSoup(res.content, 'html.parser')
             for ele in soup.find(id='react-listview').find('tbody').find_all('tr'):
-                tmp = {}
                 info = ele.find_all('td')
-                tmp['symbol'] = info[1].find(
-                    'div', class_='screener-symbol').text
+                tmp = {'symbol': info[1].find(
+                    'div', class_='screener-symbol').text}
                 if tmp['symbol']+'USDT' in cryptoList:
                     tmp['rank'] = count
                     tmp['market_cap'] = info[2].find('a').text
@@ -327,26 +342,22 @@ class _Scraper:
 
 def retrieve_top_gainers_hourly():
     sc = _Scraper()
-    result = sc.scrape(1, True)
-    return result
+    return sc.scrape(1, True)
 
 
 def retrieve_top_losers_hourly():
     sc = _Scraper()
-    result = sc.scrape(1, False)
-    return result
+    return sc.scrape(1, False)
 
 
 def retrieve_top_gainers_daily():
     sc = _Scraper()
-    result = sc.scrape(24, True)
-    return result
+    return sc.scrape(24, True)
 
 
 def retrieve_top_losers_daily():
     sc = _Scraper()
-    result = sc.scrape(24, False)
-    return result
+    return sc.scrape(24, False)
 
 
 if __name__ == "__main__":

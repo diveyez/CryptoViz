@@ -115,7 +115,7 @@ app.add_middleware(
 @app.middleware("http")
 async def cookie_set(request: Request, call_next):
     response = await call_next(request)
-    for idx, header in enumerate(response.raw_headers):
+    for header in response.raw_headers:
         if header[0].decode("utf-8") == "set-cookie":
             cookie = header[1].decode("utf-8")
             cookie_arr = cookie.split('=')
@@ -131,7 +131,7 @@ async def cookie_set(request: Request, call_next):
         if header[0].decode("utf-8") == "set-cookie":
             cookie = header[1].decode("utf-8")
             if "SameSite=None" not in cookie:
-                cookie = cookie + "; SameSite=None"
+                cookie = f'{cookie}; SameSite=None'
                 response.raw_headers[idx] = (header[0], cookie.encode())
     return response
 
@@ -139,11 +139,10 @@ async def cookie_set(request: Request, call_next):
 @app.get("/api/crypto/tickerInfo/{ticker}")
 async def get_crypto_info(ticker: str = Path(..., title="The Ticker of the Crypto to get")):
     ticker = escape(ticker)
-    if(len(ticker) > 5 and len(ticker) < 10 and ticker in cryptoList):
+    if (len(ticker) > 5 and len(ticker) < 10 and ticker in cryptoList):
         for tether in dataHandler.tethers:
             tickerTemp = ticker.replace(tether, "")
-            fullName = cryptoData.extract_name(tickerTemp)
-            if(fullName):
+            if fullName := cryptoData.extract_name(tickerTemp):
                 return {"fullName": fullName}
     raise HTTPException(status_code=404, detail="Ticker not found")
 
@@ -171,7 +170,7 @@ def on_after_forgot_password(user: User, token: str, request: Request):
 
 @app.get("/api/gainers/")
 async def get_top_gainers(time: int = 1):
-    if time != 1 and time != 24:
+    if time not in [1, 24]:
         raise HTTPException(status_code=400, detail="Invalid time.")
     res = None
     if time == 1:
@@ -183,7 +182,7 @@ async def get_top_gainers(time: int = 1):
 
 @app.get("/api/losers/")
 async def get_top_losers(time: int = 1):
-    if time != 1 and time != 24:
+    if time not in [1, 24]:
         raise HTTPException(status_code=400, detail="Invalid time.")
     res = None
     if time == 1:
@@ -215,14 +214,12 @@ async def crypto_info(symbol: str = "BTCUSDT"):
     symbol = escape(symbol)
     if(len(symbol) > 10):
         symbol = symbol[:9]
-    if(symbol not in cryptoList):
+    if (symbol not in cryptoList):
         raise HTTPException(status_code=404, detail="Symbol Not Found")
-        return
     symbolName = None
     for tether in dataHandler.tethers:
         tickerTemp = symbol.replace(tether, "")
-        fullName = cryptoData.extract_name(tickerTemp)
-        if(fullName):
+        if fullName := cryptoData.extract_name(tickerTemp):
             symbolName = fullName
             break
     return dataHandler.symbolsInfo(symbol, symbolName=symbolName)
@@ -230,10 +227,10 @@ async def crypto_info(symbol: str = "BTCUSDT"):
 
 @app.get("/search")
 async def search_for_symbol(query: str = None, limit: int = 10):
-    limit = limit+1
-    if(not query and limit < len(cryptoList)):
+    limit += 1
+    if (not query and limit < len(cryptoList)):
         return cryptoList[:limit]
-    elif(query is not None and len(query) < 15):
+    elif (query is not None and len(query) < 15):
         query = escape(query)
         query = query.upper()
         tempQueryList = [s for s in cryptoList if query in s][:limit]
@@ -242,8 +239,7 @@ async def search_for_symbol(query: str = None, limit: int = 10):
             symbolName = None
             for tether in dataHandler.tethers:
                 tickerTemp = symbol.replace(tether, "")
-                fullName = cryptoData.extract_name(tickerTemp)
-                if(fullName):
+                if fullName := cryptoData.extract_name(tickerTemp):
                     symbolName = fullName
                     queryList.append(dataHandler.symbolsInfo(
                         symbol, symbolName=symbolName))
@@ -262,23 +258,22 @@ async def history(request: Request, symbol: str = "BTCUSDT", to: int = 0, resolu
     resolution = escape(resolution)
     returnVal = dataHandler.historyConstantTime(
         to=to, fromDate=fromDate, symbol=symbol, resolution=resolution)
-    if(len(returnVal) > 0):
-        t = []
-        c = []
-        v = []
-        h = []
-        l = []
-        o = []
-        for currVal in returnVal:
-            t.append(int((currVal[0])/1000))
-            o.append(currVal[1])
-            h.append(currVal[2])
-            l.append(currVal[3])
-            c.append(currVal[4])
-            v.append(currVal[5])
-        return {"s": "ok", "t": t, "o": o,
-                "c": c, "v": v, 'h': h, 'l': l}
-    else:
+    if len(returnVal) <= 0:
         raise HTTPException(status_code=400, detail="Invalid request")
+    t = []
+    c = []
+    v = []
+    h = []
+    l = []
+    o = []
+    for currVal in returnVal:
+        t.append(int((currVal[0])/1000))
+        o.append(currVal[1])
+        h.append(currVal[2])
+        l.append(currVal[3])
+        c.append(currVal[4])
+        v.append(currVal[5])
+    return {"s": "ok", "t": t, "o": o,
+            "c": c, "v": v, 'h': h, 'l': l}
 
 # end mandatory implemented endpoints
