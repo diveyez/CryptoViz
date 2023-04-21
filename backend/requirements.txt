@@ -78,7 +78,7 @@ service-identity==18.1.0
 six==1.13.0
 sniffio==1.1.0
 soupsieve==1.9.5
-starlette==0.13.2
+starlette==0.25.0
 ta==0.5.11
 TA-Lib==0.4.17
 tqdm==4.41.1
